@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   UserRole, UserProfile, Rates, MonthlyExpenseSheet, ExpenseStatus, ExpenseEntry, Notification, MonthlyTourPlan
 } from './types';
@@ -27,12 +26,11 @@ import { NetworkStatus } from './components/NetworkStatus';
 import { Button } from './components/Button';
 import { Logo } from './components/Logo';
 import {
-  LogOut
+  LogOut, Menu
 } from 'lucide-react';
+import { LoadingScreen } from './components/LoadingScreen';
 import { LoginPage } from './components/LoginPage';
 import { Sidebar } from './components/layout/Sidebar';
-
-const APP_VERSION = "1.5.0";
 
 const App = () => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -40,8 +38,9 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // const [emailInput, setEmailInput] = useState(''); // Moved to LoginPage
-  // const [loginError, setLoginError] = useState(''); // Moved to LoginPage
+  // 1. ADDED: State for Mobile Sidebar Toggle
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const [view, setView] = useState<'DASHBOARD' | 'SHEET' | 'SETTINGS' | 'APPROVALS' | 'USERS' | 'CLIENTS' | 'ATTENDANCE' | 'TOUR_PLAN' | 'REPORTING' | 'INVENTORY' | 'SALES' | 'TOUR_PLAN_APPROVAL' | 'PERFORMANCE' | 'APPRAISALS' | 'STOCKISTS'>('DASHBOARD');
   const [activeSheet, setActiveSheet] = useState<MonthlyExpenseSheet | null>(null);
 
@@ -51,15 +50,11 @@ const App = () => {
   const [activeTourPlan, setActiveTourPlan] = useState<MonthlyTourPlan | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
 
-  // --- Auth Handlers ---
-
-
   const handleLogout = () => {
     setCurrentUser(null);
     setActiveSheet(null);
     setCurrentMonthSheet(null);
     setPendingApprovals([]);
-    // setEmailInput('');
   };
 
   const handleInstallApp = () => {
@@ -114,13 +109,6 @@ const App = () => {
 
     const notifs = await getNotifications(currentUser.uid);
     setNotifications(notifs);
-  };
-
-  const openMySheet = async () => {
-    if (!currentUser) return;
-    const now = new Date();
-    setActiveSheet(await getExpenseSheet(currentUser.uid, now.getFullYear(), now.getMonth()));
-    setView('SHEET');
   };
 
   const openApprovalSheet = (sheet: MonthlyExpenseSheet) => {
@@ -191,7 +179,7 @@ const App = () => {
     alert(`Logged in as ${user.displayName}`);
   };
 
-  if (loading && !currentUser) return <div className="flex h-screen items-center justify-center text-slate-500">Loading Tertius Integrity AI...</div>;
+  if (loading && !currentUser) return <LoadingScreen />;
 
   if (!currentUser) {
     return <LoginPage onLoginSuccess={(user) => { setCurrentUser(user); setView('DASHBOARD'); }} />;
@@ -207,55 +195,87 @@ const App = () => {
   const isManager = [UserRole.ASM, UserRole.RM, UserRole.ZM, UserRole.ADMIN].includes(currentUser.role);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+    <div className="flex h-screen bg-[#020617] overflow-hidden">
       <NetworkStatus />
+      
+      {/* 2. FIXED: Pass state and handler to Sidebar */}
       <Sidebar
         currentUser={currentUser}
         view={view}
         setView={setView}
         pendingApprovals={pendingApprovals}
-
         onLogout={handleLogout}
         onInstallApp={handleInstallApp}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <div className="bg-white border-b border-slate-200 p-4 flex justify-between items-center md:hidden">
-          <Logo className="h-8" />
-          <button onClick={handleLogout} aria-label="Logout" title="Logout"><LogOut size={18} /></button>
-        </div>
-        <div className="flex-1 overflow-auto p-4 md:p-8">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {/* 3. ADDED: Mobile Header Bar */}
+        <header className="md:hidden bg-[#0F172A] border-b border-slate-700/50 p-4 flex items-center justify-between z-20">
+           <div className="flex items-center">
+             <button onClick={() => setIsSidebarOpen(true)} className="text-slate-300 mr-4">
+               <Menu size={24} />
+             </button>
+             <Logo className="h-6" variant="light"/>
+           </div>
+           <button onClick={handleLogout} className="text-slate-400">
+             <LogOut size={20} />
+           </button>
+        </header>
+
+        <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 custom-scrollbar bg-[#020617]">
           {view === 'DASHBOARD' && (
-            <div className="max-w-5xl space-y-6">
-              <h2 className="text-2xl font-bold text-slate-800">Welcome, {getFirstName()}</h2>
+            <div className="max-w-6xl space-y-6 mx-auto">
+              <h2 className="text-2xl font-bold text-white tracking-tight">Welcome, {getFirstName()}</h2>
               <AIInsights sheet={currentMonthSheet} userName={getFirstName()} userRole={currentUser.role} userId={currentUser.uid} />
               {isManager && <ManagerDashboard user={currentUser} />}
               {currentUser.role === UserRole.MR && <><MRAnalytics /><AttendancePanel user={currentUser} /></>}
             </div>
           )}
+          
           {view === 'ATTENDANCE' && <AttendancePanel user={currentUser} />}
           {view === 'TOUR_PLAN' && <TourPlanner user={currentUser} canApprove={false} />}
           {view === 'REPORTING' && <FieldReporting user={currentUser} />}
           {view === 'INVENTORY' && <InventoryPanel currentUser={currentUser} />}
           {view === 'SALES' && <ManagerDashboard user={currentUser} />}
+          
           {view === 'SETTINGS' && isAdmin && rates && <AdminSettings currentRates={rates} onSave={handleSaveRates} />}
           {view === 'USERS' && isAdmin && <UserManagement onLoginAs={handleLoginAs} />}
           {view === 'CLIENTS' && isAdmin && <ClientManagement />}
+          
           {view === 'PERFORMANCE' && <PerformanceDashboard user={currentUser} />}
           {view === 'APPRAISALS' && isAdmin && <AdminAppraisalView />}
-          {<StockistPanel />} {view === 'SHEET' && activeSheet && rates && <ExpenseTable sheet={activeSheet} rates={rates} userRole={currentUser.role} userStatus={currentUser.status} isOwner={currentUser.uid === activeSheet.userId} territories={tableTerritories} onSave={handleSaveSheet} onSubmit={handleSubmitSheet} onApprove={handleApproveSheet} onReject={handleRejectSheet} />}
+          
+          {/* 4. FIXED: Conditional rendering for StockistPanel */}
+          {view === 'STOCKISTS' && <StockistPanel />} 
+          
+          {view === 'SHEET' && activeSheet && rates && (
+            <ExpenseTable 
+                sheet={activeSheet} 
+                rates={rates} 
+                userRole={currentUser.role} 
+                userStatus={currentUser.status} 
+                isOwner={currentUser.uid === activeSheet.userId} 
+                territories={tableTerritories} 
+                onSave={handleSaveSheet} 
+                onSubmit={handleSubmitSheet} 
+                onApprove={handleApproveSheet} 
+                onReject={handleRejectSheet} 
+            />
+          )}
 
           {view === 'APPROVALS' && isManager && (
-            <div className="max-w-5xl">
-              <h2 className="text-2xl font-bold mb-6">Pending Approvals</h2>
+            <div className="max-w-5xl mx-auto">
+              <h2 className="text-2xl font-bold mb-6 text-white">Pending Approvals</h2>
 
               {pendingApprovals.length > 0 && (
                 <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-3 text-slate-600">Expense Sheets</h3>
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Expense Sheets</h3>
                   {pendingApprovals.map(s => (
-                    <div key={s.id} className="p-4 border mb-2 flex justify-between bg-white rounded items-center">
-                      <span>{allUsers.find(u => u.uid === s.userId)?.displayName} - ₹{s.entries.reduce((a, b) => a + b.totalAmount, 0)}</span>
-                      <Button size="sm" onClick={() => openApprovalSheet(s)}>Review</Button>
+                    <div key={s.id} className="p-4 border border-slate-700 bg-[#0F172A] rounded-xl mb-3 flex justify-between items-center shadow-lg">
+                      <span className="text-slate-200 font-medium">{allUsers.find(u => u.uid === s.userId)?.displayName} <span className="text-slate-500 mx-2">|</span> ₹{s.entries.reduce((a, b) => a + b.totalAmount, 0)}</span>
+                      <Button size="sm" onClick={() => openApprovalSheet(s)} className="bg-blue-600 hover:bg-blue-500 border-none text-white">Review</Button>
                     </div>
                   ))}
                 </div>
@@ -263,38 +283,34 @@ const App = () => {
 
               {pendingTourPlans.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold mb-3 text-slate-600">Tour Plans</h3>
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Tour Plans</h3>
                   {pendingTourPlans.map(p => (
-                    <div key={p.id} className="p-4 border mb-2 flex justify-between bg-white rounded items-center">
-                      <span>{allUsers.find(u => u.uid === p.userId)?.displayName} - {getMonthName(p.month)} {p.year}</span>
-                      <Button size="sm" onClick={() => openApprovalTourPlan(p)}>Review</Button>
+                    <div key={p.id} className="p-4 border border-slate-700 bg-[#0F172A] rounded-xl mb-3 flex justify-between items-center shadow-lg">
+                      <span className="text-slate-200 font-medium">{allUsers.find(u => u.uid === p.userId)?.displayName} <span className="text-slate-500 mx-2">|</span> {getMonthName(p.month)} {p.year}</span>
+                      <Button size="sm" onClick={() => openApprovalTourPlan(p)} className="bg-purple-600 hover:bg-purple-500 border-none text-white">Review</Button>
                     </div>
                   ))}
                 </div>
               )}
 
               {pendingApprovals.length === 0 && pendingTourPlans.length === 0 && (
-                <div className="text-slate-500 italic">No pending approvals.</div>
+                <div className="text-slate-500 italic p-8 text-center border border-dashed border-slate-800 rounded-xl">No pending approvals.</div>
               )}
             </div>
           )}
 
           {view === 'TOUR_PLAN_APPROVAL' && activeTourPlan && (
-            <div className="max-w-5xl">
-              <Button variant="outline" size="sm" onClick={() => setView('APPROVALS')} className="mb-4">Back to Approvals</Button>
-              {/* We need to pass the user object of the plan owner, not current user */}
+            <div className="max-w-5xl mx-auto">
+              <Button variant="outline" size="sm" onClick={() => setView('APPROVALS')} className="mb-4 text-slate-400 border-slate-600 hover:text-white">Back to Approvals</Button>
               {(() => {
                 const planOwner = allUsers.find(u => u.uid === activeTourPlan.userId);
-                if (!planOwner) return <div>User not found</div>;
-                // We need to modify TourPlanner to accept 'plan' prop instead of loading it?
-                // Currently TourPlanner loads plan by itself based on user.uid.
-                // So we can pass planOwner as 'user' prop.
+                if (!planOwner) return <div className="text-red-400">User not found</div>;
                 return <TourPlanner user={planOwner} canApprove={true} />;
               })()}
             </div>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

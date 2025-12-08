@@ -5,6 +5,23 @@
 @layer base {
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
+
+    /* --- MOBILE APP FIXES START --- */
+    
+    /* 1. Handle the "Notch" and Home Bar (Safe Areas) */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+
+    /* 2. Prevent "Rubber Banding" (bouncing) when scrolling past the top/bottom */
+    overscroll-behavior-y: none;
+
+    /* 3. Disable Text Selection (so it feels like an app, not a website) */
+    user-select: none;
+    -webkit-user-select: none;
+    
+    /* --- MOBILE APP FIXES END --- */
   }
 }
 
