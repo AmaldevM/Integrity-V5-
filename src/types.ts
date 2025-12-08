@@ -1,3 +1,4 @@
+// src/types.ts
 
 export enum UserRole {
   ADMIN = 'ADMIN',
@@ -35,18 +36,16 @@ export interface RateConfig {
   kmRate: number;
 }
 
-// Map key format: `${UserRole}_${UserStatus}`
 export type Rates = Record<string, RateConfig>;
 
 export interface Territory {
   id: string;
   name: string;
   category: ExpenseCategory;
-  fixedKm: number; // Admin fixed distance
-  // Geofencing
+  fixedKm: number;
   geoLat?: number;
   geoLng?: number;
-  geoRadius?: number; // meters
+  geoRadius?: number;
 }
 
 export interface UserProfile {
@@ -61,12 +60,12 @@ export interface UserProfile {
   territories: Territory[];
   hqLat?: number;
   hqLng?: number;
-  password?: string; // Added for internal auth
+  password?: string;
 }
 
 export interface ExpenseEntry {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   territoryId?: string;
   towns: string;
   category: ExpenseCategory;
@@ -92,24 +91,22 @@ export interface MonthlyExpenseSheet {
   rejectionReason?: string;
 }
 
-// --- Attendance Types ---
+// --- Attendance ---
 
 export interface GeoLocationData {
   latitude: number;
   longitude: number;
   accuracy: number;
   timestamp: number;
-  mocked?: boolean;
 }
 
 export interface PunchRecord {
   id: string;
   type: 'IN' | 'OUT';
-  timestamp: string; // ISO
+  timestamp: string;
   location: GeoLocationData;
   verifiedTerritoryId?: string | null;
   verifiedTerritoryName?: string | null;
-  notes?: string;
 }
 
 export interface DailyAttendance {
@@ -121,7 +118,7 @@ export interface DailyAttendance {
   isSyncedToSheets: boolean;
 }
 
-// --- Field Reporting Types ---
+// --- Field Reporting & Customers ---
 
 export enum CustomerType {
   DOCTOR = 'DOCTOR',
@@ -169,7 +166,7 @@ export interface VisitRecord {
   itemsGiven?: { itemId: string; itemName: string; quantity: number }[];
 }
 
-// --- Tour Plan Types ---
+// --- Tour Plan ---
 
 export enum TourPlanStatus {
   DRAFT = 'DRAFT',
@@ -194,10 +191,9 @@ export interface MonthlyTourPlan {
   year: number;
   status: TourPlanStatus;
   entries: TourPlanEntry[];
-  approvedByUid?: string;
 }
 
-// --- Inventory & Sales Types ---
+// --- Inventory & Stockist ---
 
 export type InventoryType = 'SAMPLE' | 'GIFT' | 'INPUT';
 
@@ -205,10 +201,7 @@ export interface InventoryItem {
   id: string;
   name: string;
   type: InventoryType;
-  description?: string;
   unitPrice: number;
-  batchNumber?: string;
-  expiryDate?: string;
 }
 
 export interface UserStock {
@@ -222,13 +215,40 @@ export interface StockTransaction {
   id: string;
   date: string;
   fromUserId: string;
-  toUserId: string;
+  toUserId: string;  // Corrected property name
   itemId: string;
   itemName: string;
   quantity: number;
   type: 'ISSUE' | 'RETURN' | 'DISTRIBUTE_TO_DOCTOR';
-  relatedVisitId?: string;
 }
+
+export interface Stockist {
+  id: string;
+  name: string;
+  territoryId: string;
+  currentStock: { [itemId: string]: number };
+}
+
+export interface PrimarySale {
+  id: string;
+  date: string;
+  stockistId: string;
+  items: { itemId: string; quantity: number; rate: number; amount: number }[];
+  totalAmount: number;
+  status: 'PENDING' | 'APPROVED' | 'DELIVERED';
+}
+
+export interface SecondarySale {
+  id: string;
+  date: string;
+  stockistId: string;
+  customerId: string;
+  mrId: string;
+  items: { itemId: string; quantity: number; rate: number; amount: number }[];
+  totalAmount: number;
+}
+
+// --- Performance ---
 
 export interface SalesTarget {
   id: string;
@@ -237,6 +257,27 @@ export interface SalesTarget {
   year: number;
   targetAmount: number;
   achievedAmount: number;
+}
+
+export interface PerformanceMetrics {
+  salesAchieved: number;
+  salesTarget: number;
+  callAverage: number;
+  attendanceDays: number;
+  tourCompliance: number;
+}
+
+export interface AppraisalRecord {
+  id: string;
+  userId: string;
+  month: number;
+  year: number;
+  metrics: PerformanceMetrics;
+  managerRating?: number;
+  adminRating?: number;
+  comments?: string;
+  finalScore: number;
+  createdAt: string;
 }
 
 export interface Notification {

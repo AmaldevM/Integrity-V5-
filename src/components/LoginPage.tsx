@@ -54,7 +54,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-[#102A63] rounded-full mix-blend-screen filter blur-[120px] opacity-30"></div>
 
       {/* MAIN CARD - Glassmorphism */}
-      <div className="relative w-full max-w-md bg-[#0F172A]/60 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl p-8 z-10">
+      <div className="relative w-full max-w-md bg-[#0F172A]/0 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl p-8 z-10">
         
         {/* HEADER SECTION */}
         <div className="flex flex-col items-center mb-8">
@@ -164,7 +164,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-slate-800 text-center">
           <p className="text-xs text-slate-600">
-            &copy; 2025 Tertius Integrity AI. <br /> Protected by Enterprise
+            &copy; 2025 Tertius Life Science Pvt Ltd <br /> Protected by Enterprise
             Grade Security.
           </p>
         </div>

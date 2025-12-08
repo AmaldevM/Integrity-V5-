@@ -27,7 +27,7 @@ export const LoadingScreen: React.FC = () => {
             <div className="text-center space-y-1">
                 <h2 className="text-white font-bold text-lg tracking-[0.2em] uppercase flex items-center justify-center gap-2">
                     <ShieldCheck size={16} className="text-[#8B1E1E]" />
-                    Integrity AI
+                    TERTIUS LIFE SCIENCE
                 </h2>
                 <p className="text-slate-500 text-xs font-mono animate-pulse">
                     Initializing Secure Environment...

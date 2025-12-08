@@ -30,7 +30,6 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 // --- CONFIGURATION ---
-// For local development without env vars, we'll use a dummy config.
 // In production, these should be in .env
 const firebaseConfig = {
     apiKey: "AIzaSyDummyKey",
@@ -87,8 +86,8 @@ const MOCK_USERS: UserProfile[] = [
 ];
 
 const MOCK_INVENTORY_ITEMS: InventoryItem[] = [
-    { id: 'p1', name: 'Tertius-D 10mg', type: 'SAMPLE', batchNumber: 'B101', expiryDate: '2025-12-31', unitPrice: 0 },
-    { id: 'p2', name: 'Tertius-Cal 500mg', type: 'SAMPLE', batchNumber: 'B102', expiryDate: '2025-11-30', unitPrice: 0 },
+    { id: 'p1', name: 'Tertius-D 10mg', type: 'SAMPLE', unitPrice: 0 },
+    { id: 'p2', name: 'Tertius-Cal 500mg', type: 'SAMPLE', unitPrice: 0 },
     { id: 'g1', name: 'Pen', type: 'GIFT', unitPrice: 50 },
     { id: 'g2', name: 'Notepad', type: 'GIFT', unitPrice: 30 },
     { id: 'l1', name: 'Visual Aid', type: 'INPUT', unitPrice: 500 }
@@ -142,12 +141,14 @@ export const getUser = async (input?: string, password?: string): Promise<UserPr
                 return { uid: 'admin_mohdshea', email: 'mohdshea@gmail.com', displayName: 'Mohd Shea (Super Admin)', role: UserRole.ADMIN, status: 'CONFIRMED' as any, hqLocation: 'Head Office', territories: [] };
             }
             if (!db) return null;
+            // Check custom password logic first
             const q = query(collection(db, USERS_COL), where("email", "==", input));
             const snap = await getDocs(q);
             if (!snap.empty) {
                 const user = snap.docs[0].data() as UserProfile;
                 if (user.password === password) return user;
             }
+            // Fallback to Firebase Auth
             try {
                 const uc = await signInWithEmailAndPassword(auth, input, password);
                 const userDoc = await getDoc(doc(db, USERS_COL, uc.user.uid));
@@ -308,14 +309,29 @@ export const getVisitsForCustomer = async (customerId: string): Promise<VisitRec
 export const saveVisit = async (visit: VisitRecord): Promise<void> => {
     if (!db) return;
     await setDoc(doc(db, VISITS_COL, visit.id), sanitize(visit));
-    // Stock deduction logic omitted for brevity in this restore, but should be here
+
+    // Deduct Stock
+    if (visit.itemsGiven && visit.itemsGiven.length > 0) {
+        for (const gift of visit.itemsGiven) {
+            const q = query(collection(db, STOCK_COL), where("userId", "==", visit.userId), where("itemId", "==", gift.itemId));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                const docRef = snap.docs[0].ref;
+                const current = snap.docs[0].data().quantity || 0;
+                await updateDoc(docRef, { quantity: Math.max(0, current - gift.quantity) });
+            }
+        }
+    }
 };
 
 export const updateCustomerSales = async (customerId: string, amount: number): Promise<void> => {
     if (!db) return;
     const customerRef = doc(db, CUSTOMERS_COL, customerId);
-    // Mock update - in real app would increment total sales
-    console.log(`Updating sales for ${customerId} by ${amount}`);
+    const snap = await getDoc(customerRef);
+    if (snap.exists()) {
+        const current = snap.data().lastMonthSales || 0;
+        await updateDoc(customerRef, { lastMonthSales: current + amount });
+    }
 };
 
 // --- TOUR PLAN SERVICES ---
@@ -361,6 +377,8 @@ export const getPendingTourPlansForAsm = async (asmId: string): Promise<MonthlyT
 export const getInventoryItems = async (): Promise<InventoryItem[]> => {
     if (!db) return MOCK_INVENTORY_ITEMS;
     const snap = await getDocs(collection(db, INV_ITEMS_COL));
+    // If empty, return mocks to start
+    if (snap.empty) return MOCK_INVENTORY_ITEMS;
     return snap.docs.map(d => d.data() as InventoryItem);
 };
 
@@ -371,17 +389,56 @@ export const getUserStock = async (userId: string): Promise<UserStock[]> => {
     return snap.docs.map(d => d.data() as UserStock);
 };
 
-export const getStockTransactions = async (userId: string): Promise<StockTransaction[]> => {
+// Updated signature to handle empty strings/undefined for Admin
+export const getStockTransactions = async (userId?: string): Promise<StockTransaction[]> => {
     if (!db) return [];
-    const q = query(collection(db, TRANSACTIONS_COL), where("fromUserId", "==", userId));
+    const q = query(collection(db, TRANSACTIONS_COL), orderBy("date", "desc"));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as StockTransaction);
+    const all = snap.docs.map(d => d.data() as StockTransaction);
+    if (!userId) return all; // Admin sees all
+    return all.filter(t => t.toUserId === userId || t.fromUserId === userId);
 };
 
-export const distributeStock = async (transaction: StockTransaction): Promise<void> => {
+// Updated to take simplified object and construct Transaction
+export const distributeStock = async (params: { toUserId: string; itemId: string; quantity: number }): Promise<void> => {
     if (!db) return;
+    const { toUserId, itemId, quantity } = params;
+
+    const items = await getInventoryItems();
+    const item = items.find(i => i.id === itemId);
+    const itemName = item ? item.name : 'Unknown Item';
+
+    const transaction: StockTransaction = {
+        id: uuidv4(),
+        date: new Date().toISOString(),
+        fromUserId: 'admin1',
+        toUserId, // Fixed Property Name
+        itemId,
+        itemName,
+        quantity,
+        type: 'ISSUE'
+    };
+
     await setDoc(doc(db, TRANSACTIONS_COL, transaction.id), sanitize(transaction));
-    // Logic to update UserStock would go here
+
+    // Update User Stock
+    const q = query(collection(db, STOCK_COL), where("userId", "==", toUserId), where("itemId", "==", itemId));
+    const snap = await getDocs(q);
+
+    if (!snap.empty) {
+        const stockDoc = snap.docs[0];
+        const currentQty = stockDoc.data().quantity || 0;
+        await updateDoc(stockDoc.ref, { quantity: currentQty + quantity });
+    } else {
+        const newStock: UserStock = {
+            userId: toUserId,
+            itemId,
+            itemName,
+            quantity
+        };
+        const newId = `${toUserId}_${itemId}`;
+        await setDoc(doc(db, STOCK_COL, newId), sanitize(newStock));
+    }
 };
 
 export const getSalesTarget = async (userId: string, month: number, year: number): Promise<SalesTarget | null> => {
@@ -432,9 +489,10 @@ export const calculatePerformanceMetrics = async (userId: string, month: number,
     const target = await getSalesTarget(userId, month, year);
     const salesAchieved = target ? target.achievedAmount : 0;
     const salesTarget = target ? target.targetAmount : 100000;
-    const attendanceDays = 22; // Mock
-    const callAverage = 10; // Mock
-    const tourCompliance = 90; // Mock
+    // Mock calculations for now
+    const attendanceDays = 22;
+    const callAverage = 10;
+    const tourCompliance = 90;
     return { salesAchieved, salesTarget, callAverage, attendanceDays, tourCompliance };
 };
 
@@ -454,7 +512,6 @@ export const recordPrimarySale = async (sale: PrimarySale): Promise<void> => {
     if (!db) return;
     await setDoc(doc(db, PRIMARY_SALES_COL, sale.id), sanitize(sale));
 
-    // Update Stockist Inventory
     const stockistRef = doc(db, STOCKISTS_COL, sale.stockistId);
     const stockistSnap = await getDoc(stockistRef);
     if (stockistSnap.exists()) {
@@ -473,7 +530,6 @@ export const recordSecondarySale = async (sale: SecondarySale): Promise<void> =>
     if (!db) return;
     await setDoc(doc(db, SECONDARY_SALES_COL, sale.id), sanitize(sale));
 
-    // Deduct from Stockist Inventory
     const stockistRef = doc(db, STOCKISTS_COL, sale.stockistId);
     const stockistSnap = await getDoc(stockistRef);
     if (stockistSnap.exists()) {
@@ -514,15 +570,14 @@ export const getSecondarySales = async (stockistId?: string): Promise<SecondaryS
 
 export const syncAttendanceToGoogleSheets = async (attendance: DailyAttendance): Promise<void> => {
     console.log("Mock syncing to Google Sheets", attendance);
-    // In a real app, this would call a Cloud Function or Google Sheets API
 };
 
 export const getDashboardStats = async (userId: string): Promise<any> => {
-    // Mock stats
     return {
         totalSales: 150000,
         targetAchievement: 75,
         activeStockists: 5,
-        pendingApprovals: 2
+        pendingApprovals: 2,
+        avgCalls: 11
     };
 };
