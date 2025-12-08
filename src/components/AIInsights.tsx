@@ -56,8 +56,8 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ sheet, userName, userRol
         const allCustomers = await getAllCustomers();
         const myCustomers = allCustomers.filter(c => territoryIds.includes(c.territoryId));
 
-        // Note: In a real app, optimize this to fetch only relevant visits
-        const allVisits = await getVisits(new Date().toISOString().split('T')[0]); // Fallback/Mock logic
+        // Pass userId first, then the date string
+const allVisits = await getVisits(userId, new Date().toISOString().split('T')[0]);
         
         // Mock logic for month filtering since getVisits is date specific in mock
         // For this demo, assuming we calculate based on coverage ratio if real data is sparse

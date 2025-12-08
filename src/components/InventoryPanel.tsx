@@ -35,7 +35,7 @@ export const InventoryPanel: React.FC<InventoryPanelProps> = ({ currentUser }) =
     }
 
     // Load History
-    const tx = await getStockTransactions(currentUser.role === UserRole.ADMIN ? undefined : currentUser.uid);
+    const tx = await getStockTransactions(currentUser.role === UserRole.ADMIN ? '' : currentUser.uid);
     setTransactions(tx);
   };
 
@@ -44,7 +44,7 @@ export const InventoryPanel: React.FC<InventoryPanelProps> = ({ currentUser }) =
       alert("Please select user, item and quantity");
       return;
     }
-    await distributeStock(selectedUser, selectedItem, qty);
+    await distributeStock({ userId: selectedUser, itemId: selectedItem, quantity: qty });
     alert("Stock Issued Successfully!");
     setQty(0);
     loadData(); // Refresh history
