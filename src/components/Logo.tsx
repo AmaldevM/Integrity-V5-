@@ -1,6 +1,10 @@
 import React, { useState } from "react";
+// https://i.postimg.cc/jjL93wwS/black-logo.png
+// https://i.postimg.cc/cJrjkggC/red-logo.png
+// https://i.postimg.cc/3wd6f4yq/white-logo.png
 
-const logoFallback = "https://i.postimg.cc/3Njyk9Zq/INTEGRITY-AI-WHITE-LOGO.png";
+
+const logoFallback = "../assets/white-logo.png";
 
 interface LogoProps {
   className?: string;
