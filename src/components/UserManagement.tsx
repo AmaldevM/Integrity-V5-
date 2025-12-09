@@ -379,7 +379,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onLoginAs }) => 
             <h2 className="text-2xl font-bold text-white tracking-tight">User Management</h2>
             <p className="text-slate-400 text-sm mt-1">Manage system access, roles, and field hierarchies.</p>
         </div>
-        <Button onClick={handleCreate} className="bg-white text-[#8B1E1E] hover:bg-slate-100 font-bold border-none shadow-md">
+        <Button onClick={handleCreate} className="bg-slate-700 text-[#ffffff] hover:bg-slate-100 font-bold border-none shadow-md">
             <Plus size={16} className="mr-2" /> Add User
         </Button>
       </div>
