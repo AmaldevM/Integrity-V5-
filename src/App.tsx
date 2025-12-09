@@ -249,7 +249,9 @@ const App = () => {
 
           {view === 'ATTENDANCE' && <AttendancePanel user={currentUser} />}
           {view === 'TOUR_PLAN' && <TourPlanner user={currentUser} canApprove={false} />}
-          {view === 'REPORTING' && <FieldReporting user={currentUser} />}
+          {view === 'REPORTING' && (
+            <FieldReporting user={currentUser} />
+          )}
           {view === 'INVENTORY' && <InventoryPanel currentUser={currentUser} />}
           {view === 'SALES' && <ManagerDashboard user={currentUser} />}
 

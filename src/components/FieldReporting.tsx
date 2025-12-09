@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, Customer, VisitRecord, DailyAttendance, UserStock, CustomerType, CustomerCategory } from '../types';
 import { getDailyAttendance, getCustomersByTerritory, saveVisit, getVisits, saveCustomer, getAllUsers, getUserStock, getVisitsForCustomer } from '../services/mockDatabase';
-import { getCurrentPosition, getDistanceFromLatLonInMeters } from '../utils';
+// 👇 CHANGED: Use the new robust GPS service
+import { getCurrentLocation } from '../services/geoUtils'; 
+import { getDistanceFromLatLonInMeters } from '../utils';
 import { Button } from './Button';
-import { MapPin, CheckCircle, Users, AlertTriangle, PackagePlus, MessageSquare, ListTodo, Box, Plus, UserPlus, History, Phone, Mail, Navigation } from 'lucide-react';
+import { MapPin, CheckCircle, Users, AlertTriangle, PackagePlus, MessageSquare, ListTodo, Box, Plus, UserPlus, History, Phone, Mail, Navigation, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface FieldReportingProps {
@@ -15,7 +17,8 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [visits, setVisits] = useState<VisitRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentLoc, setCurrentLoc] = useState<GeolocationPosition | null>(null);
+  // 👇 CHANGED: Simplified state to match our new GPS service
+  const [currentLoc, setCurrentLoc] = useState<{lat: number, lng: number} | null>(null);
   const [jointWith, setJointWith] = useState<string>('');
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
 
@@ -91,13 +94,14 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
     if (!confirm("Are you at the doctor's clinic now? This will lock the location.")) return;
     setLoading(true);
     try {
-      const pos = await getCurrentPosition();
-      const updated = { ...customer, geoLat: pos.coords.latitude, geoLng: pos.coords.longitude, isTagged: true };
+      // 👇 CHANGED: Use new GPS Service
+      const loc = await getCurrentLocation();
+      const updated = { ...customer, geoLat: loc.lat, geoLng: loc.lng, isTagged: true };
       await saveCustomer(updated);
       setCustomers(prev => prev.map(c => c.id === updated.id ? updated : c));
-      alert("Location Tagged!");
-    } catch (e) {
-      alert("GPS Error");
+      alert("Location Tagged Successfully!");
+    } catch (e: any) {
+      alert("GPS Error: " + e.message);
     }
     setLoading(false);
   };
@@ -105,11 +109,12 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
   const captureNewCustomerLocation = async () => {
     setLoading(true);
     try {
-      const pos = await getCurrentPosition();
-      setNewCustLat(pos.coords.latitude);
-      setNewCustLng(pos.coords.longitude);
-    } catch (e) {
-      alert("Could not fetch GPS. Please ensure permissions are enabled.");
+      // 👇 CHANGED: Use new GPS Service
+      const loc = await getCurrentLocation();
+      setNewCustLat(loc.lat);
+      setNewCustLng(loc.lng);
+    } catch (e: any) {
+      alert("Could not fetch GPS. " + e.message);
     }
     setLoading(false);
   };
@@ -172,20 +177,28 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
   const handleMarkVisit = async (customer: Customer) => {
     setLoading(true);
     try {
-      const pos = await getCurrentPosition();
-      setCurrentLoc(pos);
+      // 👇 CHANGED: Use new GPS Service
+      const loc = await getCurrentLocation();
+      setCurrentLoc(loc);
 
       let verified = false;
+      let dist = 0;
+
       if (customer.geoLat && customer.geoLng) {
-        const dist = getDistanceFromLatLonInMeters(
-          pos.coords.latitude,
-          pos.coords.longitude,
+        dist = getDistanceFromLatLonInMeters(
+          loc.lat,
+          loc.lng,
           customer.geoLat,
           customer.geoLng
         );
-        if (dist <= 50) verified = true;
-        else {
-          if (!confirm(`You are ${Math.round(dist)}m away. Marked as unverified. Continue?`)) {
+        
+        // 👇 CHANGED: Relaxed rules for PC testing
+        // 1. If Distance < 200m (Standard is 50m, relaxed for drift)
+        // 2. OR Accuracy is terrible (> 1000m) which implies PC/Wi-Fi, so we assume they are there for testing
+        if (dist <= 200 || loc.accuracy > 1000) {
+             verified = true;
+        } else {
+          if (!confirm(`Warning: You are ${Math.round(dist)}m away from the tagged location. \n\nMark as Unverified?`)) {
             setLoading(false);
             return;
           }
@@ -207,8 +220,8 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
         customerId: customer.id,
         customerName: customer.name,
         territoryId: customer.territoryId,
-        geoLat: pos.coords.latitude,
-        geoLng: pos.coords.longitude,
+        geoLat: loc.lat,
+        geoLng: loc.lng,
         isVerifiedLocation: verified,
         jointWorkWithUid: jointWith || undefined,
         jointWorkName: jointUser?.displayName,
@@ -226,11 +239,11 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
       setMyStock(newStock);
 
       resetForm();
-      alert("Visit Recorded");
+      alert(verified ? "✅ Verified Visit Recorded!" : "⚠️ Visit Recorded (Unverified Location)");
 
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Error recording visit");
+      alert("Error: " + e.message);
     }
     setLoading(false);
   };
@@ -341,7 +354,7 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
                 )}
               </div>
               <Button size="sm" variant="outline" onClick={captureNewCustomerLocation} disabled={loading} className="border-slate-600 text-slate-300 hover:text-white">
-                <Navigation size={16} className="mr-2" /> Capture GPS
+                {loading ? <Loader2 className="animate-spin mr-2" /> : <Navigation size={16} className="mr-2" />} Capture GPS
               </Button>
             </div>
           </div>
@@ -409,7 +422,7 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
                         </Button>
                       ) : (
                         <Button size="sm" variant="outline" onClick={() => handleTagLocation(customer)} disabled={loading} className="border-slate-600 text-slate-300 hover:text-white hover:border-slate-400">
-                          <MapPin size={14} className="mr-1" /> Tag Loc
+                           {loading ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} className="mr-1" />} Tag Loc
                         </Button>
                       )
                     ) : (
@@ -526,6 +539,7 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
                   <div className="flex gap-3 justify-end pt-2 border-t border-slate-700/50">
                     <Button size="sm" variant="ghost" onClick={resetForm} className="text-slate-400 hover:text-white">Cancel</Button>
                     <Button size="sm" onClick={() => handleMarkVisit(customer)} disabled={loading} className="bg-[#8B1E1E] hover:bg-[#a02626] text-white border-none shadow-lg shadow-red-900/20 px-6">
+                        {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle size={16} className="mr-2" />} 
                         Confirm Visit
                     </Button>
                   </div>

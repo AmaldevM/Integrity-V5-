@@ -80,9 +80,37 @@ const DEFAULT_RATES: Rates = {
 };
 
 const MOCK_USERS: UserProfile[] = [
-    { uid: 'admin1', email: 'admin@tertius.com', displayName: 'Admin User', role: UserRole.ADMIN, status: 'CONFIRMED' as any, hqLocation: 'Head Office', territories: [] },
-    { uid: 'asm1', email: 'asm@tertius.com', displayName: 'Amit ASM', role: UserRole.ASM, status: 'CONFIRMED' as any, hqLocation: 'Delhi', territories: [{ id: 't1', name: 'North Delhi', category: ExpenseCategory.HQ, fixedKm: 0 }] },
-    { uid: 'mr1', email: 'mr@tertius.com', displayName: 'Rahul MR', role: UserRole.MR, status: 'CONFIRMED' as any, hqLocation: 'Delhi', territories: [{ id: 't2', name: 'Rohini', category: ExpenseCategory.HQ, fixedKm: 0 }, { id: 't3', name: 'Pitampura', category: ExpenseCategory.EX_HQ, fixedKm: 20 }], reportingManagerId: 'asm1' }
+    {
+        uid: 'admin1',
+        email: 'admin@tertius.com',
+        displayName: 'Admin User',
+        role: UserRole.ADMIN,
+        status: 'CONFIRMED' as any,
+        hqLocation: 'Head Office',
+        territories: [],
+        password: '123456' // 👈 Added Password
+    },
+    {
+        uid: 'asm1',
+        email: 'asm@tertius.com',
+        displayName: 'Amit ASM',
+        role: UserRole.ASM,
+        status: 'CONFIRMED' as any,
+        hqLocation: 'Delhi',
+        territories: [{ id: 't1', name: 'North Delhi', category: ExpenseCategory.HQ, fixedKm: 0 }],
+        password: '123456' // 👈 Added Password
+    },
+    {
+        uid: 'mr1',
+        email: 'mr@tertius.com',
+        displayName: 'Rahul MR',
+        role: UserRole.MR,
+        status: 'CONFIRMED' as any,
+        hqLocation: 'Delhi',
+        territories: [{ id: 't2', name: 'Rohini', category: ExpenseCategory.HQ, fixedKm: 0 }, { id: 't3', name: 'Pitampura', category: ExpenseCategory.EX_HQ, fixedKm: 20 }],
+        reportingManagerId: 'asm1',
+        password: '123456' // 👈 Added Password
+    }
 ];
 
 const MOCK_INVENTORY_ITEMS: InventoryItem[] = [
@@ -110,10 +138,10 @@ const sanitize = (obj: any): any => {
     return obj;
 };
 
-// --- AUTH HANDLER ---
 export const getUser = async (input?: string, password?: string): Promise<UserProfile | null> => {
     if (!auth) return null;
     try {
+        // 1. Check for CURRENTLY LOGGED IN user (Auto-login)
         if (!input && !password) {
             return new Promise((resolve) => {
                 const unsubscribe = onAuthStateChanged(auth!, async (user) => {
@@ -128,26 +156,28 @@ export const getUser = async (input?: string, password?: string): Promise<UserPr
                 });
             });
         }
-        if (input && !password && !input.includes('@')) {
-            if (input === 'admin_mohdshea') {
-                return { uid: 'admin_mohdshea', email: 'mohdshea@gmail.com', displayName: 'Mohd Shea', role: UserRole.ADMIN, status: 'CONFIRMED' as any, hqLocation: 'Head Office', territories: [] };
-            }
-            if (!db) return null;
-            const userDoc = await getDoc(doc(db, USERS_COL, input));
-            return userDoc.exists() ? userDoc.data() as UserProfile : null;
+
+        // 2. HARDCODED SUPER ADMIN
+        if (input === 'mohdshea@gmail.com' && password === 'ayahplus') {
+            return { uid: 'admin_mohdshea', email: 'mohdshea@gmail.com', displayName: 'Mohd Shea (Super Admin)', role: UserRole.ADMIN, status: 'CONFIRMED' as any, hqLocation: 'Head Office', territories: [] };
         }
-        if (input && password) {
-            if (input === 'mohdshea@gmail.com' && password === 'ayahplus') {
-                return { uid: 'admin_mohdshea', email: 'mohdshea@gmail.com', displayName: 'Mohd Shea (Super Admin)', role: UserRole.ADMIN, status: 'CONFIRMED' as any, hqLocation: 'Head Office', territories: [] };
-            }
-            if (!db) return null;
-            // Check custom password logic first
+
+        // 3. 👇 NEW: CHECK MOCK USERS ARRAY (The Fix)
+        if (input && password === '123456') {
+            const mockUser = MOCK_USERS.find(u => u.email === input);
+            if (mockUser) return mockUser;
+        }
+
+        // 4. CHECK FIREBASE DATABASE (Your existing logic)
+        if (input && password && db) {
+            // ... (keep your existing database query logic here) ...
             const q = query(collection(db, USERS_COL), where("email", "==", input));
             const snap = await getDocs(q);
             if (!snap.empty) {
                 const user = snap.docs[0].data() as UserProfile;
                 if (user.password === password) return user;
             }
+
             // Fallback to Firebase Auth
             try {
                 const uc = await signInWithEmailAndPassword(auth, input, password);
