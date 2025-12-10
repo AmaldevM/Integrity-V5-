@@ -215,22 +215,6 @@ export const AttendancePanel: React.FC<AttendancePanelProps> = ({ user }) => {
           </div>
         )}
 
-        {/* NEARBY TERRITORIES HIGHLIGHTS */}
-        {nearbyTerritories.length > 0 && !attendance.punchIn?.verifiedTerritoryId && (
-          <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
-            {nearbyTerritories.map(t => (
-              <div key={t.id} className="bg-slate-800/50 border border-slate-700 rounded-lg p-2 min-w-[140px] flex items-center gap-2">
-                <Compass size={14} className="text-blue-400" />
-                <div>
-                  <div className="text-[10px] text-slate-400 uppercase">Nearby</div>
-                  <div className="text-xs font-bold text-white">{t.name}</div>
-                  <div className="text-[10px] text-slate-500">{Math.round(t.distance / 1000)} km away</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Status Message */}
         {statusMessage && (
           <div className={`mb-6 p-4 rounded-lg text-sm flex items-center font-medium border shadow-inner ${statusType === 'error' ? 'bg-red-900/20 text-red-200 border-red-900/50' :
