@@ -1,24 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { 
-  ExpenseEntry, 
-  ExpenseCategory, 
-  Rates, 
-  CATEGORY_LABELS, 
+import {
+  ExpenseEntry,
+  ExpenseCategory,
+  Rates,
   MonthlyExpenseSheet,
   ExpenseStatus,
   UserRole,
-  Territory,
-  UserStatus
+  Territory, // Ensure this exists in types.ts
+  UserStatus // Ensure this exists in types.ts
 } from '../types';
 import { Save, AlertTriangle, CheckCircle, Lock, Printer, Camera, Sparkles, X, Send } from 'lucide-react';
 import { Button } from './Button';
 
+// Define labels internally if not in types.ts, or import them
+export const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  [ExpenseCategory.HQ]: 'HQ (Headquarters)',
+  [ExpenseCategory.EX_HQ]: 'Ex-HQ (Metro)',
+  [ExpenseCategory.OUTSTATION]: 'Outstation',
+  [ExpenseCategory.FIELD_WORK]: 'Field Work', // Fallback
+  [ExpenseCategory.LEAVE]: 'Leave',
+  [ExpenseCategory.HOLIDAY]: 'Holiday',
+  [ExpenseCategory.SUNDAY]: 'Sunday',
+  [ExpenseCategory.ADMIN_DAY]: 'Admin Day',
+  [ExpenseCategory.MEETING]: 'Meeting'
+};
+
 interface ExpenseTableProps {
   sheet: MonthlyExpenseSheet;
   rates: Rates;
-  userRole: UserRole; 
+  userRole: UserRole;
   userStatus: UserStatus;
-  isOwner: boolean; 
+  isOwner: boolean;
   territories: Territory[];
   onSave: (updatedEntries: ExpenseEntry[]) => void;
   onSubmit: () => void;
@@ -50,15 +62,15 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
   }, [sheet.entries]);
 
   const isEditable = useMemo(() => {
-    if (userRole === UserRole.ADMIN) return true; 
+    if (userRole === UserRole.ADMIN) return true;
     if (sheet.status !== ExpenseStatus.DRAFT && sheet.status !== ExpenseStatus.REJECTED) return false;
     return isOwner;
   }, [userRole, sheet.status, isOwner]);
 
   // Derive the specific rate config for this user
   const currentRateConfig = useMemo(() => {
-     const key = `${userRole}_${userStatus}`;
-     return rates[key] || rates['MR_CONFIRMED'] || { hqAllowance:0, exHqAllowance:0, outstationAllowance:0, kmRate:0 };
+    const key = `${userRole}_${userStatus}`;
+    return rates[key] || rates['MR_CONFIRMED'] || { hqAllowance: 0, exHqAllowance: 0, outstationAllowance: 0, kmRate: 0 };
   }, [rates, userRole, userStatus]);
 
   const recalculateRow = (entry: ExpenseEntry): ExpenseEntry => {
@@ -90,9 +102,9 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
   const handleTerritoryChange = (id: string, territoryId: string) => {
     if (!isEditable) return;
-    
+
     const t = territories.find(ter => ter.id === territoryId);
-    
+
     setEntries(prev => prev.map(entry => {
       if (entry.id !== id) return entry;
 
@@ -101,13 +113,14 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       if (t) {
         updated.territoryId = t.id;
         updated.towns = t.name;
-        updated.category = t.category;
-        
+        // Map Territory Category to Expense Category if possible
+        updated.category = t.category as ExpenseCategory;
+
         if (t.category === ExpenseCategory.OUTSTATION) {
-          updated.km = 0; 
+          updated.km = 0;
         } else {
-          updated.km = t.fixedKm; // Use Admin defined Fixed KM
-          updated.trainFare = 0; 
+          updated.km = t.fixedKm || 0; // Use Admin defined Fixed KM
+          updated.trainFare = 0;
         }
       } else {
         updated.territoryId = undefined;
@@ -125,15 +138,15 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
     setEntries(prev => prev.map(entry => {
       if (entry.id !== id) return entry;
       const updated = { ...entry, [field]: value };
-      
+
       if (field === 'category') {
         if (value === ExpenseCategory.OUTSTATION) {
-           updated.km = 0;
+          updated.km = 0;
         } else {
-           updated.trainFare = 0;
-           if ([ExpenseCategory.HQ, ExpenseCategory.HOLIDAY, ExpenseCategory.SUNDAY].includes(value)) {
-             updated.km = 0;
-           }
+          updated.trainFare = 0;
+          if ([ExpenseCategory.HQ, ExpenseCategory.HOLIDAY, ExpenseCategory.SUNDAY].includes(value)) {
+            updated.km = 0;
+          }
         }
       }
 
@@ -149,11 +162,10 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       const mockAmount = Math.floor(Math.random() * 400) + 50;
       const mockItems = ['Lunch', 'Stationery', 'Toll Charge', 'Parking'];
       const mockItem = mockItems[Math.floor(Math.random() * mockItems.length)];
-      
+
       handleEntryChange(id, 'miscAmount', mockAmount);
       handleEntryChange(id, 'remarks', `${mockItem} (AI Scanned)`);
       setScanningRowId(null);
-      // alert(`AI Scanned Receipt!\nDetected: ${mockItem}\nAmount: ₹${mockAmount}`);
     }, 1500);
   };
 
@@ -181,7 +193,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-[#0F172A]/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 print:bg-white print:shadow-none print:border-none print:rounded-none relative overflow-hidden">
-      
+
       {/* Background Glow (Screen Only) */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-[#8B1E1E] opacity-5 blur-[120px] pointer-events-none print:hidden"></div>
 
@@ -189,13 +201,13 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       <div className="p-5 border-b border-slate-700/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sticky top-0 bg-[#0F172A]/95 z-20 backdrop-blur-md print:bg-white print:border-black print:relative">
         <div>
           <h2 className="text-xl font-bold text-white print:text-black">
-             {new Date(sheet.year, sheet.month).toLocaleString('default', { month: 'long', year: 'numeric' })}
+            {new Date(sheet.year, sheet.month).toLocaleString('default', { month: 'long', year: 'numeric' })}
           </h2>
           <div className="flex items-center gap-2 text-sm mt-1">
             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border
-              ${sheet.status === ExpenseStatus.APPROVED_ADMIN ? 'bg-green-900/30 text-green-400 border-green-800 print:border-black print:text-black print:bg-transparent' : 
-                sheet.status === ExpenseStatus.REJECTED ? 'bg-red-900/30 text-red-400 border-red-800 print:border-black print:text-black print:bg-transparent' : 
-                'bg-blue-900/30 text-blue-400 border-blue-800 print:border-black print:text-black print:bg-transparent'}`}>
+              ${sheet.status === ExpenseStatus.APPROVED_ADMIN ? 'bg-green-900/30 text-green-400 border-green-800 print:border-black print:text-black print:bg-transparent' :
+                sheet.status === ExpenseStatus.REJECTED ? 'bg-red-900/30 text-red-400 border-red-800 print:border-black print:text-black print:bg-transparent' :
+                  'bg-blue-900/30 text-blue-400 border-blue-800 print:border-black print:text-black print:bg-transparent'}`}>
               {sheet.status.replace('_', ' ')}
             </span>
           </div>
@@ -203,7 +215,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
         <div className="flex flex-wrap gap-2 print:hidden">
           <Button onClick={handlePrint} size="sm" variant="outline">
-             <Printer size={16} className="mr-2" /> Print
+            <Printer size={16} className="mr-2" /> Print
           </Button>
 
           {isEditable && isDirty && (
@@ -214,37 +226,37 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
           {isOwner && (sheet.status === ExpenseStatus.DRAFT || sheet.status === ExpenseStatus.REJECTED) && (
             <Button onClick={onSubmit} size="sm" variant="success">
-                <Send size={16} className="mr-2" /> Submit
+              <Send size={16} className="mr-2" /> Submit
             </Button>
           )}
 
           {!isOwner && userRole !== UserRole.MR && (
-             (userRole === UserRole.ASM && sheet.status === ExpenseStatus.SUBMITTED) ||
-             (userRole === UserRole.ADMIN && [ExpenseStatus.SUBMITTED, ExpenseStatus.APPROVED_ASM].includes(sheet.status))
+            (userRole === UserRole.ASM && sheet.status === ExpenseStatus.SUBMITTED) ||
+            (userRole === UserRole.ADMIN && [ExpenseStatus.SUBMITTED, ExpenseStatus.APPROVED_ASM].includes(sheet.status))
           ) && (
-            <>
-              {showRejectInput ? (
-                <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700">
-                  <input 
-                    type="text" 
-                    placeholder="Reason..." 
-                    className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-red-500"
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                  />
-                  <Button size="xs" variant="danger" onClick={() => onReject && onReject(rejectReason)}>Confirm</Button>
-                  <Button size="xs" variant="ghost" onClick={() => setShowRejectInput(false)}><X size={14}/></Button>
-                </div>
-              ) : (
-                <>
-                  <Button size="sm" variant="danger" onClick={() => setShowRejectInput(true)}>Reject</Button>
-                  <Button size="sm" variant="success" onClick={onApprove}>
-                    <CheckCircle size={16} className="mr-2" /> Approve
-                  </Button>
-                </>
-              )}
-            </>
-          )}
+              <>
+                {showRejectInput ? (
+                  <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700">
+                    <input
+                      type="text"
+                      placeholder="Reason..."
+                      className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-red-500"
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                    />
+                    <Button size="xs" variant="danger" onClick={() => onReject && onReject(rejectReason)}>Confirm</Button>
+                    <Button size="xs" variant="ghost" onClick={() => setShowRejectInput(false)}><X size={14} /></Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button size="sm" variant="danger" onClick={() => setShowRejectInput(true)}>Reject</Button>
+                    <Button size="sm" variant="success" onClick={onApprove}>
+                      <CheckCircle size={16} className="mr-2" /> Approve
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
         </div>
       </div>
 
@@ -279,10 +291,10 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
           <tbody className="divide-y divide-slate-800 print:divide-slate-200">
             {entries.map((entry) => {
               const isWeekend = entry.category === ExpenseCategory.SUNDAY;
-              const rowClass = isWeekend 
-                ? 'bg-slate-800/40 print:bg-slate-100' 
+              const rowClass = isWeekend
+                ? 'bg-slate-800/40 print:bg-slate-100'
                 : 'hover:bg-white/5 transition-colors print:hover:bg-transparent';
-              
+
               return (
                 <tr key={entry.id} className={`${rowClass}`}>
                   <td className="p-2 text-slate-300 print:text-black font-medium whitespace-nowrap">
@@ -291,7 +303,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                   <td className="p-2">
                     {isEditable ? (
                       <div className="flex flex-col gap-1 print:hidden">
-                        <select 
+                        <select
                           className="w-full bg-[#020617]/50 border border-slate-700 rounded text-sm py-1 text-white focus:ring-1 focus:ring-[#8B1E1E] outline-none"
                           value={entry.territoryId || ''}
                           onChange={(e) => handleTerritoryChange(entry.id, e.target.value)}
@@ -304,7 +316,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                         </select>
                         <div className="flex items-center gap-1">
                           <span className="text-[10px] text-slate-500">Cat:</span>
-                          <select 
+                          <select
                             className="text-xs bg-transparent border-none py-0 pl-1 text-slate-400 focus:text-white outline-none cursor-pointer"
                             value={entry.category}
                             onChange={(e) => handleEntryChange(entry.id, 'category', e.target.value)}
@@ -323,14 +335,14 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                     )}
                     {/* Print Only View for Editable Fields */}
                     {isEditable && <div className="hidden print:block">
-                        <div>{entry.towns || '-'}</div>
-                        <div className="text-xs">{CATEGORY_LABELS[entry.category]}</div>
+                      <div>{entry.towns || '-'}</div>
+                      <div className="text-xs">{CATEGORY_LABELS[entry.category]}</div>
                     </div>}
                   </td>
                   <td className="p-2 text-right">
                     {isEditable && entry.category !== ExpenseCategory.OUTSTATION && ![ExpenseCategory.HQ, ExpenseCategory.SUNDAY, ExpenseCategory.HOLIDAY].includes(entry.category) ? (
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         min="0"
                         className="w-full text-right bg-[#020617]/50 border border-slate-700 rounded px-1 py-1 text-sm text-white focus:ring-1 focus:ring-[#8B1E1E] outline-none print:hidden"
                         value={entry.km}
@@ -343,13 +355,13 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                   </td>
                   <td className="p-2 text-right">
                     {isEditable && entry.category === ExpenseCategory.OUTSTATION ? (
-                      <input 
-                          type="number"
-                          min="0"
-                          placeholder="Fare"
-                          className="w-full text-right bg-blue-900/20 border border-blue-800 rounded px-1 py-1 text-sm font-semibold text-blue-200 focus:ring-1 focus:ring-blue-500 outline-none print:hidden"
-                          value={entry.trainFare}
-                          onChange={(e) => handleEntryChange(entry.id, 'trainFare', Number(e.target.value))}
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Fare"
+                        className="w-full text-right bg-blue-900/20 border border-blue-800 rounded px-1 py-1 text-sm font-semibold text-blue-200 focus:ring-1 focus:ring-blue-500 outline-none print:hidden"
+                        value={entry.trainFare}
+                        onChange={(e) => handleEntryChange(entry.id, 'trainFare', Number(e.target.value))}
                       />
                     ) : (
                       <span className={entry.trainFare > 0 ? 'text-slate-200 print:text-black' : 'text-slate-600 print:text-slate-300'}>
@@ -361,21 +373,21 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                   <td className="p-2 text-right text-slate-400 print:text-black">{entry.dailyAllowance}</td>
                   <td className="p-2 text-right text-slate-400 print:text-black">{entry.travelAmount}</td>
                   <td className="p-2 text-right relative group">
-                      {isEditable ? (
+                    {isEditable ? (
                       <div className="flex items-center gap-1 print:hidden">
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           min="0"
                           className="w-full text-right bg-[#020617]/50 border border-slate-700 rounded px-1 py-1 text-sm text-white focus:ring-1 focus:ring-[#8B1E1E] outline-none"
                           value={entry.miscAmount}
                           onChange={(e) => handleEntryChange(entry.id, 'miscAmount', Number(e.target.value))}
                         />
-                        <button 
+                        <button
                           onClick={() => handleSmartScan(entry.id)}
                           className="p-1 text-slate-500 hover:text-indigo-400 transition-colors"
                           title="Smart Scan Receipt (AI)"
                         >
-                          {scanningRowId === entry.id ? <Sparkles size={14} className="animate-spin text-indigo-500"/> : <Camera size={14}/>}
+                          {scanningRowId === entry.id ? <Sparkles size={14} className="animate-spin text-indigo-500" /> : <Camera size={14} />}
                         </button>
                       </div>
                     ) : <span className="text-slate-400 print:text-black">{entry.miscAmount}</span>}
@@ -384,14 +396,14 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                   <td className="p-2 text-right font-semibold text-white print:text-black">{entry.totalAmount}</td>
                   <td className="p-2">
                     {isEditable ? (
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         className="w-full bg-[#020617]/50 border border-slate-700 rounded px-2 py-1 text-sm text-white focus:ring-1 focus:ring-[#8B1E1E] outline-none print:hidden"
                         value={entry.remarks}
                         onChange={(e) => handleEntryChange(entry.id, 'remarks', e.target.value)}
                       />
                     ) : <span className="text-slate-400 print:text-black">{entry.remarks}</span>}
-                     {isEditable && <span className="hidden print:block">{entry.remarks}</span>}
+                    {isEditable && <span className="hidden print:block">{entry.remarks}</span>}
                   </td>
                 </tr>
               );

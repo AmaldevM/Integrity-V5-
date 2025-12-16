@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, Customer, VisitRecord, DailyAttendance, UserStock, CustomerType, CustomerCategory } from '../types';
 import { getDailyAttendance, getCustomersByTerritory, saveVisit, getVisits, saveCustomer, getAllUsers, getUserStock, getVisitsForCustomer } from '../services/mockDatabase';
-// 👇 CHANGED: Use the new robust GPS service
-import { getCurrentLocation } from '../services/geoUtils'; 
+import { getCurrentLocation } from '../services/geoUtils';
 import { getDistanceFromLatLonInMeters } from '../utils';
 import { Button } from './Button';
 import { MapPin, CheckCircle, Users, AlertTriangle, PackagePlus, MessageSquare, ListTodo, Box, Plus, UserPlus, History, Phone, Mail, Navigation, Loader2 } from 'lucide-react';
@@ -17,8 +16,7 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [visits, setVisits] = useState<VisitRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  // 👇 CHANGED: Simplified state to match our new GPS service
-  const [currentLoc, setCurrentLoc] = useState<{lat: number, lng: number} | null>(null);
+  const [currentLoc, setCurrentLoc] = useState<{ lat: number, lng: number } | null>(null);
   const [jointWith, setJointWith] = useState<string>('');
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
 
@@ -94,7 +92,6 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
     if (!confirm("Are you at the doctor's clinic now? This will lock the location.")) return;
     setLoading(true);
     try {
-      // 👇 CHANGED: Use new GPS Service
       const loc = await getCurrentLocation();
       const updated = { ...customer, geoLat: loc.lat, geoLng: loc.lng, isTagged: true };
       await saveCustomer(updated);
@@ -109,7 +106,6 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
   const captureNewCustomerLocation = async () => {
     setLoading(true);
     try {
-      // 👇 CHANGED: Use new GPS Service
       const loc = await getCurrentLocation();
       setNewCustLat(loc.lat);
       setNewCustLng(loc.lng);
@@ -177,7 +173,6 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
   const handleMarkVisit = async (customer: Customer) => {
     setLoading(true);
     try {
-      // 👇 CHANGED: Use new GPS Service
       const loc = await getCurrentLocation();
       setCurrentLoc(loc);
 
@@ -191,12 +186,10 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
           customer.geoLat,
           customer.geoLng
         );
-        
-        // 👇 CHANGED: Relaxed rules for PC testing
-        // 1. If Distance < 200m (Standard is 50m, relaxed for drift)
-        // 2. OR Accuracy is terrible (> 1000m) which implies PC/Wi-Fi, so we assume they are there for testing
+
+        // RELAXED RULES FOR TESTING
         if (dist <= 200 || loc.accuracy > 1000) {
-             verified = true;
+          verified = true;
         } else {
           if (!confirm(`Warning: You are ${Math.round(dist)}m away from the tagged location. \n\nMark as Unverified?`)) {
             setLoading(false);
@@ -250,24 +243,24 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
 
   if (!attendance?.punchIn) {
     return (
-      <div className="p-12 text-center bg-[#0F172A] border border-slate-700 rounded-xl text-slate-400 flex flex-col items-center">
+      <div className="p-12 text-center bg-[#0F172A] border border-slate-700 rounded-xl text-slate-400 flex flex-col items-center mt-10">
         <AlertTriangle className="mb-4 text-amber-500" size={48} />
         <h3 className="text-xl font-bold text-white mb-2">Punch In Required</h3>
-        <p>Please mark your attendance to access field reporting features.</p>
+        <p className="text-sm">Please mark your attendance to access field reporting features.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#0F172A]/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl relative overflow-hidden">
-      
+    <div className="bg-[#0F172A]/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl relative overflow-hidden flex flex-col h-[calc(100vh-120px)]">
+
       {/* Header */}
       <div className="p-5 border-b border-slate-700/50 bg-slate-800/30 flex justify-between items-center relative z-10">
         <div>
           <h2 className="font-bold text-white text-lg tracking-tight">Field Reporting</h2>
-          <p className="text-xs text-slate-400 flex items-center gap-1">
-             <MapPin size={10} className="text-[#8B1E1E]"/> 
-             Territory: <span className="text-white font-medium">{attendance.punchIn.verifiedTerritoryName}</span>
+          <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+            <MapPin size={10} className="text-[#8B1E1E]" />
+            Territory: <span className="text-white font-medium">{attendance.punchIn.verifiedTerritoryName}</span>
           </p>
         </div>
         <div className="text-right">
@@ -277,7 +270,7 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
       </div>
 
       {/* Controls Bar */}
-      <div className="p-4 border-b border-slate-700/50 flex flex-col md:flex-row justify-between items-center gap-4 bg-[#020617]/30">
+      <div className="p-4 border-b border-slate-700/50 flex flex-col md:flex-row justify-between items-center gap-4 bg-[#020617]/30 z-10">
         <div className="flex items-center gap-3 text-sm w-full md:w-auto">
           <Users size={16} className="text-slate-400" />
           <span className="font-medium text-slate-300 hidden md:inline">Joint Work:</span>
@@ -304,7 +297,7 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
 
       {/* ADD CUSTOMER FORM */}
       {showAddCustomer && (
-        <div className="p-6 bg-[#020617]/50 border-b border-slate-700/50 animate-in slide-in-from-top-2">
+        <div className="p-6 bg-[#020617]/50 border-b border-slate-700/50 animate-in slide-in-from-top-2 z-10">
           <h3 className="font-bold text-white mb-4 flex items-center gap-2">
             <div className="p-1.5 bg-blue-900/30 rounded border border-blue-800 text-blue-400"><Plus size={16} /></div>
             Add to Call List
@@ -312,9 +305,9 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Name</label>
-              <input 
-                className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-white focus:ring-1 focus:ring-[#8B1E1E] outline-none placeholder-slate-500" 
-                value={newCustName} onChange={e => setNewCustName(e.target.value)} placeholder="e.g. Dr. Amit Kumar" 
+              <input
+                className="w-full bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm text-white focus:ring-1 focus:ring-[#8B1E1E] outline-none placeholder-slate-500"
+                value={newCustName} onChange={e => setNewCustName(e.target.value)} placeholder="e.g. Dr. Amit Kumar"
               />
             </div>
             <div>
@@ -339,7 +332,7 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
                 <option value={CustomerCategory.C}>C</option>
               </select>
             </div>
-            
+
             <div className="md:col-span-2 flex flex-col md:flex-row items-center gap-4 bg-[#0F172A] p-4 rounded-xl border border-slate-700">
               <div className="flex-1">
                 <div className="text-xs font-bold text-slate-400 mb-1 uppercase tracking-wide">GPS Location (Required)</div>
@@ -360,17 +353,17 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
           </div>
           <div className="flex justify-end">
             <Button onClick={handleCreateCustomer} disabled={!newCustLat} className="bg-[#8B1E1E] hover:bg-[#a02626] text-white border-none shadow-lg shadow-red-900/20">
-                Save to Call List
+              Save to Call List
             </Button>
           </div>
         </div>
       )}
 
       {/* CUSTOMER LIST */}
-      <div className="divide-y divide-slate-800 max-h-[600px] overflow-y-auto custom-scrollbar">
+      <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-800">
         {customers.length === 0 && !showAddCustomer && (
           <div className="p-12 text-center text-slate-500 italic flex flex-col items-center">
-            <Users size={32} className="opacity-20 mb-2"/>
+            <Users size={32} className="opacity-20 mb-2" />
             No customers found in this territory. <br />
             Click "Add Customer" to build your Call List.
           </div>
@@ -386,27 +379,26 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
                 <div>
                   <div className="font-bold text-white text-lg flex items-center">
                     {customer.name}
-                    <span className={`ml-3 text-[10px] px-1.5 py-0.5 rounded font-bold border ${
-                        customer.category === 'A' ? 'bg-purple-900/30 text-purple-300 border-purple-800' : 
-                        customer.category === 'B' ? 'bg-blue-900/30 text-blue-300 border-blue-800' : 
-                        'bg-slate-800 text-slate-400 border-slate-700'
-                    }`}>{customer.category}</span>
+                    <span className={`ml-3 text-[10px] px-1.5 py-0.5 rounded font-bold border ${customer.category === 'A' ? 'bg-purple-900/30 text-purple-300 border-purple-800' :
+                        customer.category === 'B' ? 'bg-blue-900/30 text-blue-300 border-blue-800' :
+                          'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}>{customer.category}</span>
                   </div>
                   <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-                      {customer.specialty && <span className="bg-slate-800 px-1.5 rounded text-slate-300">{customer.specialty}</span>}
-                      <span className="uppercase tracking-wide text-[10px]">{customer.type}</span>
+                    {customer.specialty && <span className="bg-slate-800 px-1.5 rounded text-slate-300">{customer.specialty}</span>}
+                    <span className="uppercase tracking-wide text-[10px]">{customer.type}</span>
                   </div>
-                  
+
                   {!customer.isTagged && (
-                      <div className="text-[10px] text-amber-500 mt-2 flex items-center bg-amber-900/10 px-2 py-0.5 rounded w-fit border border-amber-900/30">
-                          <AlertTriangle size={10} className="mr-1"/> Location Not Tagged
-                      </div>
+                    <div className="text-[10px] text-amber-500 mt-2 flex items-center bg-amber-900/10 px-2 py-0.5 rounded w-fit border border-amber-900/30">
+                      <AlertTriangle size={10} className="mr-1" /> Location Not Tagged
+                    </div>
                   )}
-                  
+
                   {visited && (
                     <div className="mt-2 text-xs text-green-400 flex items-center font-medium">
-                        <CheckCircle size={14} className="mr-1.5" /> 
-                        Visited at {new Date(visited.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <CheckCircle size={14} className="mr-1.5" />
+                      Visited at {new Date(visited.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   )}
                 </div>
@@ -422,11 +414,11 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
                         </Button>
                       ) : (
                         <Button size="sm" variant="outline" onClick={() => handleTagLocation(customer)} disabled={loading} className="border-slate-600 text-slate-300 hover:text-white hover:border-slate-400">
-                           {loading ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} className="mr-1" />} Tag Loc
+                          {loading ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} className="mr-1" />} Tag Loc
                         </Button>
                       )
                     ) : (
-                        <Button size="sm" variant="ghost" onClick={() => setActiveCustId(null)} className="text-slate-400 hover:text-white">Cancel</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setActiveCustId(null)} className="text-slate-400 hover:text-white">Cancel</Button>
                     )
                   )}
                 </div>
@@ -514,21 +506,21 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
                           <label className="flex items-center gap-3 cursor-pointer select-none flex-1">
                             <input type="checkbox" className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-[#8B1E1E] focus:ring-offset-0 focus:ring-0" checked={!!isSelected} onChange={() => toggleItemSelection(stock.itemId)} />
                             <span className={isSelected ? 'text-white font-medium' : 'text-slate-400'}>
-                                {stock.itemName} 
-                                <span className="text-[10px] text-slate-600 ml-2 font-mono bg-slate-900 px-1 rounded border border-slate-800">Bal: {stock.quantity}</span>
+                              {stock.itemName}
+                              <span className="text-[10px] text-slate-600 ml-2 font-mono bg-slate-900 px-1 rounded border border-slate-800">Bal: {stock.quantity}</span>
                             </span>
                           </label>
                           {isSelected && (
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-slate-500 uppercase">Qty</span>
-                                <input
+                              <span className="text-[10px] text-slate-500 uppercase">Qty</span>
+                              <input
                                 type="number"
                                 min="1"
                                 max={stock.quantity}
                                 className="w-12 bg-slate-900 border border-slate-700 rounded p-1 text-center text-white text-xs focus:border-[#8B1E1E] outline-none"
                                 value={isSelected.qty}
                                 onChange={(e) => updateItemQty(stock.itemId, Number(e.target.value))}
-                                />
+                              />
                             </div>
                           )}
                         </div>
@@ -539,8 +531,8 @@ export const FieldReporting: React.FC<FieldReportingProps> = ({ user }) => {
                   <div className="flex gap-3 justify-end pt-2 border-t border-slate-700/50">
                     <Button size="sm" variant="ghost" onClick={resetForm} className="text-slate-400 hover:text-white">Cancel</Button>
                     <Button size="sm" onClick={() => handleMarkVisit(customer)} disabled={loading} className="bg-[#8B1E1E] hover:bg-[#a02626] text-white border-none shadow-lg shadow-red-900/20 px-6">
-                        {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle size={16} className="mr-2" />} 
-                        Confirm Visit
+                      {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : <CheckCircle size={16} className="mr-2" />}
+                      Confirm Visit
                     </Button>
                   </div>
                 </div>

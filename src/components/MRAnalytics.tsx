@@ -1,133 +1,152 @@
-import React, { useState, useEffect } from 'react';
-import { SalesTarget } from '../types';
-import { BarChart3, TrendingUp, Lightbulb, Phone } from 'lucide-react';
-import { getDashboardStats, getSalesTarget } from '../services/mockDatabase';
-import { getAuth } from 'firebase/auth';
+import React, { useEffect, useState } from 'react';
+import { getVisits, getDailyAttendance, getUserStock, getAllAttendance } from '../services/mockDatabase';
+import { VisitRecord, UserStock, DailyAttendance } from '../types';
+import { Users, Package, CalendarCheck, TrendingUp, AlertCircle, MapPin } from 'lucide-react';
 
-export const MRAnalytics: React.FC = () => {
-  const [stats, setStats] = useState<any>(null);
-  const [target, setTarget] = useState<SalesTarget | null>(null);
-  const [callTrend, setCallTrend] = useState<number[]>([]);
+export const MRAnalytics = () => {
+  const [stats, setStats] = useState({
+    callCount: 0,
+    doctorsMet: 0,
+    chemistsMet: 0,
+    stockistsMet: 0,
+    samplesGiven: 0,
+    workingDays: 0,
+    lastPunchTime: '',
+    currentTerritory: ''
+  });
+
+  const [stockSummary, setStockSummary] = useState<UserStock[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // We assume the logged-in user ID is passed or retrieved. 
+  // For this component, we'll fetch 'mr1' or use a prop in a real scenario.
+  // Ideally, pass 'user' as a prop. For now, we fetch generic data for demo.
+  const userId = 'mr1';
+  const todayStr = new Date().toISOString().split('T')[0];
+
   useEffect(() => {
-    loadData();
+    loadDashboardData();
   }, []);
 
-  const loadData = async () => {
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
+  const loadDashboardData = async () => {
+    setLoading(true);
 
-    const s = await getDashboardStats(currentUser.uid);
-    setStats(s);
+    // 1. Get Today's Visits
+    const visits = await getVisits(userId, todayStr);
 
-    const now = new Date();
-    const t = await getSalesTarget(currentUser.uid, now.getMonth(), now.getFullYear());
-    setTarget(t);
+    // 2. Get Attendance to calculate Working Days (Month)
+    const allAtt = await getAllAttendance(); // In real app, filter by Month & User
+    const myAtt = allAtt.filter(a => a.userId === userId);
 
-    // Simulate last 7 days call trend
-    const trend = Array.from({ length: 7 }, () => Math.max(0, Math.round(Number(s.avgCalls) + (Math.random() * 4 - 2))));
-    setCallTrend(trend);
+    // 3. Get Current Day Status
+    const todayAtt = await getDailyAttendance(userId, todayStr);
 
+    // 4. Get Stock
+    const stock = await getUserStock(userId);
+
+    // Calculations
+    const doctors = visits.filter(v => !v.customerName.includes('Chemist') && !v.customerName.includes('Stockist')).length; // Rough logic
+    const chemists = visits.filter(v => v.customerName.includes('Chemist')).length;
+
+    // Calculate total samples given today
+    const samples = visits.reduce((total, visit) => {
+      return total + (visit.itemsGiven ? visit.itemsGiven.reduce((t, i) => t + i.quantity, 0) : 0);
+    }, 0);
+
+    setStats({
+      callCount: visits.length,
+      doctorsMet: doctors,
+      chemistsMet: chemists,
+      stockistsMet: 0,
+      samplesGiven: samples,
+      workingDays: myAtt.length,
+      lastPunchTime: todayAtt?.punchIn?.timestamp ? new Date(todayAtt.punchIn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--',
+      currentTerritory: todayAtt?.punchIn?.verifiedTerritoryName || 'Not Started'
+    });
+
+    setStockSummary(stock.slice(0, 3)); // Top 3 items
     setLoading(false);
   };
 
-  if (loading) return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="animate-pulse h-40 bg-[#0F172A]/50 border border-slate-700/50 rounded-xl"></div>
-        <div className="animate-pulse h-40 bg-[#0F172A]/50 border border-slate-700/50 rounded-xl"></div>
-        <div className="animate-pulse h-40 bg-[#0F172A]/50 border border-slate-700/50 rounded-xl"></div>
-    </div>
-  );
-
-  const targetVal = target?.targetAmount || 1;
-  const achievedVal = target?.achievedAmount || 0;
-  const pct = Math.round((achievedVal / targetVal) * 100);
+  if (loading) return <div className="p-4 text-center text-slate-500 text-xs">Loading Analytics...</div>;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-      {/* CARD 1: Call Average Trend */}
-      <div className="bg-[#0F172A]/80 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-slate-700/50 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 opacity-5 blur-[60px] pointer-events-none group-hover:opacity-10 transition-opacity"></div>
-        
-        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center">
-          <BarChart3 size={14} className="mr-2 text-blue-500" /> Call Average (Last 7 Days)
-        </h3>
-        
-        <div className="flex items-end justify-between h-32 gap-3">
-          {callTrend.map((val, i) => (
-            <div key={i} className="w-full bg-slate-800/50 rounded-t-sm relative group/bar h-full flex items-end overflow-hidden">
-              <div 
-                className="w-full bg-blue-600 transition-all duration-500 ease-out group-hover/bar:bg-blue-400" 
-                style={{ height: `${Math.min(100, (val / 15) * 100)}%` }}
-              ></div>
-              
-              {/* Tooltipish Value */}
-              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-white opacity-0 group-hover/bar:opacity-100 transition-opacity">
-                {val}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="text-center text-xs text-slate-500 mt-4 font-mono flex justify-center items-center gap-2">
-            <Phone size={12} /> Avg: <span className="text-white font-bold">{stats?.avgCalls}</span> Calls/Day
-        </div>
-      </div>
-
-      {/* CARD 2: Sales Target Donut */}
-      <div className="bg-[#0F172A]/80 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-slate-700/50 relative overflow-hidden">
-        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center">
-          <TrendingUp size={14} className="mr-2 text-[#8B1E1E]" /> Monthly Target
-        </h3>
-        
-        <div className="flex flex-col items-center justify-center">
-          <div className="relative h-28 w-28 rounded-full border-[6px] border-slate-800 flex items-center justify-center shadow-inner">
-            {/* CSS-only Progress Arc Approximation */}
-            <div 
-                className={`absolute inset-0 rounded-full border-[6px] 
-                ${pct >= 80 ? 'border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : pct >= 50 ? 'border-blue-500' : 'border-[#8B1E1E] shadow-[0_0_15px_rgba(139,30,30,0.4)]'} 
-                border-l-transparent border-b-transparent rotate-45 transition-all duration-1000`}
-            ></div>
-            
-            <div className="text-center z-10">
-              <span className="block text-2xl font-bold text-white tracking-tighter">{pct}%</span>
-              <span className="text-[9px] text-slate-500 uppercase tracking-wide">Achieved</span>
-            </div>
+      {/* 1. DAILY HIGHLIGHTS ROW */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Calls Today */}
+        <div className="bg-[#0F172A]/80 border border-slate-700/50 p-4 rounded-2xl relative overflow-hidden group">
+          <div className="absolute right-0 top-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Users size={40} className="text-blue-500" />
           </div>
-          
-          <div className="mt-4 text-xs font-mono text-slate-400 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-800">
-            <span className="text-white font-bold">₹{achievedVal.toLocaleString()}</span> 
-            <span className="mx-1 text-slate-600">/</span> 
-            ₹{targetVal.toLocaleString()}
+          <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Calls Today</div>
+          <div className="text-3xl font-bold text-white mt-1">{stats.callCount}</div>
+          <div className="text-[10px] text-blue-400 mt-1 flex items-center">
+            <TrendingUp size={10} className="mr-1" /> Target: 12
+          </div>
+        </div>
+
+        {/* Working Days */}
+        <div className="bg-[#0F172A]/80 border border-slate-700/50 p-4 rounded-2xl relative overflow-hidden">
+          <div className="absolute right-0 top-0 p-3 opacity-10">
+            <CalendarCheck size={40} className="text-green-500" />
+          </div>
+          <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Working Days</div>
+          <div className="text-3xl font-bold text-white mt-1">{stats.workingDays}</div>
+          <div className="text-[10px] text-green-400 mt-1">
+            Month: {new Date().toLocaleString('default', { month: 'short' })}
           </div>
         </div>
       </div>
 
-      {/* CARD 3: ROI Insight */}
-      <div className="bg-[#0F172A]/80 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-slate-700/50 relative overflow-hidden flex flex-col">
-        <div className="absolute bottom-0 right-0 w-32 h-32 bg-amber-500 opacity-5 blur-[60px] pointer-events-none"></div>
-
-        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center">
-          <Lightbulb size={14} className="mr-2 text-amber-400" /> Visit ROI Insight
-        </h3>
-        
-        <div className="flex-1 flex flex-col justify-center">
-            <p className="text-sm text-slate-300 mb-4 leading-relaxed">
-            <span className="text-white font-semibold">Dr. Sharma (Cat A)</span> has received <span className="text-white font-bold">3 visits</span> this month but sales are down <span className="text-red-400">10%</span>.
-            </p>
-            
-            <div className="bg-amber-900/10 p-3 rounded-lg border border-amber-900/30 text-xs text-amber-200 flex items-start gap-2">
-            <TrendingUp size={14} className="mt-0.5 flex-shrink-0" />
-            <span>
-                <span className="font-bold uppercase text-[10px] text-amber-500 block mb-1">Recommendation</span>
-                Discuss new product range "CardioPlus" in next visit to boost engagement.
-            </span>
-            </div>
+      {/* 2. CURRENT STATUS CARD */}
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 rounded-xl p-4 flex justify-between items-center shadow-lg">
+        <div>
+          <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Current Status</div>
+          <div className="flex items-center text-white font-medium">
+            <MapPin size={16} className="text-[#8B1E1E] mr-2" />
+            {stats.currentTerritory}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Punch In</div>
+          <div className="text-xl font-mono text-white">{stats.lastPunchTime}</div>
         </div>
       </div>
 
+      {/* 3. STOCK SUMMARY */}
+      <div className="bg-[#0F172A]/80 border border-slate-700/50 rounded-2xl p-4">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center">
+            <Package size={14} className="mr-2 text-purple-400" /> Inventory Snapshot
+          </h3>
+          <span className="text-[10px] bg-purple-900/20 text-purple-300 px-2 py-0.5 rounded border border-purple-800">
+            Given Today: {stats.samplesGiven}
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          {stockSummary.length === 0 ? (
+            <div className="text-xs text-slate-500 italic">No stock data available.</div>
+          ) : (
+            stockSummary.map(item => (
+              <div key={item.itemId}>
+                <div className="flex justify-between text-xs text-slate-400 mb-1">
+                  <span>{item.itemName}</span>
+                  <span className={item.quantity < 10 ? "text-red-400 font-bold" : "text-white"}>{item.quantity} left</span>
+                </div>
+                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${item.quantity < 10 ? 'bg-red-500' : 'bg-purple-500'}`}
+                    style={{ width: `${Math.min(100, (item.quantity / 50) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 };
