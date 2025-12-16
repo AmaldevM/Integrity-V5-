@@ -278,7 +278,7 @@ export const ClientManagement: React.FC = () => {
         <div className="lg:col-span-1 bg-[#0F172A]/80 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-slate-700/50 h-fit">
           <h3 className="font-bold text-white mb-6 flex items-center border-b border-slate-700/50 pb-4">
             <div className="p-2 bg-[#8B1E1E]/20 rounded-lg mr-3">
-                <Plus size={16} className="text-[#8B1E1E]" /> 
+              <Plus size={16} className="text-[#8B1E1E]" />
             </div>
             Add New Client
           </h3>
@@ -315,11 +315,11 @@ export const ClientManagement: React.FC = () => {
 
             <div className="border-t border-slate-700/50 pt-4">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Client Name</label>
-              <input 
-                className="w-full bg-[#020617]/50 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:ring-1 focus:ring-[#8B1E1E] outline-none placeholder-slate-600" 
-                value={name} 
-                onChange={e => setName(e.target.value)} 
-                placeholder="e.g. Dr. Ramesh" 
+              <input
+                className="w-full bg-[#020617]/50 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:ring-1 focus:ring-[#8B1E1E] outline-none placeholder-slate-600"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="e.g. Dr. Ramesh"
               />
             </div>
 
@@ -345,10 +345,10 @@ export const ClientManagement: React.FC = () => {
             {type === CustomerType.DOCTOR && (
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Specialty</label>
-                <input 
-                    className="w-full bg-[#020617]/50 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:ring-1 focus:ring-[#8B1E1E] outline-none" 
-                    value={specialty} 
-                    onChange={e => setSpecialty(e.target.value)} 
+                <input
+                  className="w-full bg-[#020617]/50 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:ring-1 focus:ring-[#8B1E1E] outline-none"
+                  value={specialty}
+                  onChange={e => setSpecialty(e.target.value)}
                 />
               </div>
             )}
@@ -364,10 +364,10 @@ export const ClientManagement: React.FC = () => {
               </div>
             </div>
 
-            <Button 
-                className="w-full mt-4 bg-gradient-to-r from-[#6e1212] to-[#8B1E1E] hover:from-[#8B1E1E] hover:to-[#a02626] border-none shadow-lg shadow-red-900/20" 
-                onClick={handleSaveClient} 
-                disabled={!selectedTerritoryId}
+            <Button
+              className="w-full mt-4 bg-gradient-to-r from-[#6e1212] to-[#8B1E1E] hover:from-[#8B1E1E] hover:to-[#a02626] border-none shadow-lg shadow-red-900/20"
+              onClick={handleSaveClient}
+              disabled={!selectedTerritoryId}
             >
               Add Client
             </Button>
@@ -395,8 +395,8 @@ export const ClientManagement: React.FC = () => {
                 {filteredCustomers.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="p-12 text-center text-slate-500 flex flex-col items-center justify-center">
-                        <User size={48} className="opacity-20 mb-3" />
-                        No clients found matching filters.
+                      <User size={48} className="opacity-20 mb-3" />
+                      No clients found matching filters.
                     </td>
                   </tr>
                 ) : (
@@ -407,22 +407,21 @@ export const ClientManagement: React.FC = () => {
                         <div className="text-xs text-slate-500">{c.specialty} {c.category ? `(Cat ${c.category})` : ''}</div>
                       </td>
                       <td className="p-4">
-                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
-                            c.type === CustomerType.DOCTOR ? 'bg-blue-900/30 text-blue-400 border border-blue-900/50' :
+                        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${c.type === CustomerType.DOCTOR ? 'bg-blue-900/30 text-blue-400 border border-blue-900/50' :
                             c.type === CustomerType.CHEMIST ? 'bg-purple-900/30 text-purple-400 border border-purple-900/50' :
-                            'bg-slate-800 text-slate-400 border border-slate-700'
-                        }`}>{c.type}</span>
+                              'bg-slate-800 text-slate-400 border border-slate-700'
+                          }`}>{c.type}</span>
                       </td>
                       <td className="p-4 text-slate-500 text-xs font-mono">{c.territoryId}</td>
                       <td className="p-4 text-right text-xs text-slate-500">
                         {c.geoLat ? (
                           <span className="flex items-center justify-end text-green-400 gap-1 bg-green-900/10 px-2 py-1 rounded w-fit ml-auto border border-green-900/20">
-                            <MapPin size={10} /> 
+                            <MapPin size={10} />
                             {c.geoLat.toFixed(4)}, {c.geoLng?.toFixed(4)}
                           </span>
                         ) : (
                           <span className="text-amber-500 flex items-center justify-end gap-1">
-                             <MapPin size={10} /> No GPS
+                            <MapPin size={10} /> No GPS
                           </span>
                         )}
                       </td>
